@@ -1,0 +1,22 @@
+df = spark.read.text("Files/input.txt")
+df.createOrReplaceTempView("yas")
+
+df = spark.sql("""
+SELECT SUM(CASE WHEN part = 'pt1' THEN SUM END) pt1,
+       SUM(CASE WHEN part = 'pt1' THEN SUM END) - SUM(CASE WHEN part = 'pt2' THEN SUM END) pt2
+FROM
+  (SELECT CAST(regexp_extract(col, r'mul\((\d+),') AS INT) * CAST(regexp_extract(col, r',(\d+)\)', 1) AS INT) SUM ,
+                                                                                                              part
+   FROM
+     (SELECT explode(regexp_extract_all(value, r'(mul\(\d+,\d+\))')) col,
+             part
+      FROM
+        (SELECT CAST(collect_list(value) AS STRING) value,
+                'pt1' AS part
+         FROM yas
+         UNION ALL SELECT explode(regexp_extract_all(CAST(collect_list(value) AS STRING), r'don.t\(\)(.*?)do\(\)')) value,
+                          'pt2' AS part
+         FROM yas )))
+""")
+
+display(df)
